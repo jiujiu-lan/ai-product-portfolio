@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="公众号爆文生成器：一键生成标题、简介、正文与图片提示词。">
+  <title>公众号爆文生成器</title>
+  <style>
+    :root {
+      --primary: #1769e8;
+      --primary-dark: #104ba9;
+      --primary-soft: #eaf3ff;
+      --ink: #12223a;
+      --muted: #65758b;
+      --line: #dfe9f5;
+      --surface: rgba(255, 255, 255, .94);
+      --success: #0a9a6b;
+      --shadow: 0 18px 50px rgba(29, 84, 148, .11);
+      --radius: 22px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+      background:
+        radial-gradient(circle at 13% 8%, rgba(78, 161, 255, .22), transparent 28%),
+        radial-gradient(circle at 88% 15%, rgba(72, 118, 255, .14), transparent 24%),
+        linear-gradient(145deg, #f5faff 0%, #eaf5ff 48%, #f8fbff 100%);
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      opacity: .35;
+      background-image: linear-gradient(rgba(25, 102, 221, .035) 1px, transparent 1px), linear-gradient(90deg, rgba(25, 102, 221, .035) 1px, transparent 1px);
+      background-size: 38px 38px;
+      mask-image: linear-gradient(to bottom, black, transparent 82%);
+    }
+
+    button, input, select { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+
+    .page-shell { width: min(1480px, calc(100% - 40px)); margin: 0 auto; }
+
+    .hero { padding: 54px 0 32px; text-align: center; }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 18px;
+      padding: 7px 13px;
+      border: 1px solid rgba(23, 105, 232, .18);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .7);
+      color: var(--primary-dark);
+      font-size: 13px;
+      font-weight: 700;
+      box-shadow: 0 6px 22px rgba(46, 108, 181, .08);
+      backdrop-filter: blur(10px);
+    }
+
+    .eyebrow::before { content: "✦"; color: #3d8cff; }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(34px, 5vw, 58px);
+      line-height: 1.12;
+      letter-spacing: -.045em;
+      background: linear-gradient(135deg, #102d57 10%, #1769e8 72%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .hero-subtitle {
+      margin: 17px auto 0;
+      max-width: 720px;
+      color: #536781;
+      font-size: clamp(15px, 2vw, 18px);
+      line-height: 1.75;
+    }
+
+    .app-layout {
+      display: grid;
+      grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+      gap: 22px;
+      align-items: start;
+      padding-bottom: 28px;
+    }
+
+    .card {
+      border: 1px solid rgba(204, 220, 239, .82);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .input-panel { position: sticky; top: 18px; padding: 26px; }
+
+    .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 24px; }
+    .panel-heading h2 { margin: 0; font-size: 20px; letter-spacing: -.02em; }
+
+    .step-badge {
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .form-group { margin-bottom: 18px; }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #263a55;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .required { color: #ef5b69; }
+
+    input[type="text"], select {
+      width: 100%;
+      min-height: 47px;
+      padding: 11px 13px;
+      border: 1px solid #d6e2f0;
+      border-radius: 12px;
+      outline: none;
+      background: #fbfdff;
+      color: var(--ink);
+      font-size: 14px;
+      transition: border-color .2s, box-shadow .2s, background .2s;
+    }
+
+    input::placeholder { color: #9aa9bb; }
+    input[type="text"]:focus, select:focus { border-color: #6aa4f5; background: #fff; box-shadow: 0 0 0 4px rgba(41, 118, 231, .1); }
+
+    .select-wrap { position: relative; }
+    .select-wrap select { appearance: none; padding-right: 34px; cursor: pointer; }
+    .select-wrap::after { content: "⌄"; position: absolute; right: 13px; top: 11px; color: #6c7f98; pointer-events: none; }
+
+    .switch-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 13px 14px;
+      border: 1px solid #e0e9f3;
+      border-radius: 12px;
+      background: #f8fbff;
+    }
+
+    .switch-copy strong { display: block; font-size: 14px; }
+    .switch-copy span { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
+    .switch { position: relative; width: 46px; height: 26px; flex: 0 0 auto; }
+    .switch input { position: absolute; opacity: 0; pointer-events: none; }
+    .slider { position: absolute; inset: 0; border-radius: 999px; background: #c7d3e1; cursor: pointer; transition: .22s; }
+    .slider::before { content: ""; position: absolute; width: 20px; height: 20px; left: 3px; top: 3px; border-radius: 50%; background: #fff; box-shadow: 0 2px 8px rgba(28, 51, 83, .25); transition: .22s; }
+    .switch input:checked + .slider { background: linear-gradient(135deg, #287cf2, #125dd0); }
+    .switch input:checked + .slider::before { transform: translateX(20px); }
+    .switch input:focus-visible + .slider { outline: 3px solid rgba(23, 105, 232, .22); }
+
+    .button-stack { display: grid; grid-template-columns: 1fr auto; gap: 10px; margin-top: 22px; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      min-height: 42px;
+      padding: 9px 14px;
+      border: 0;
+      border-radius: 11px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: transform .18s, box-shadow .18s, background .18s, opacity .18s;
+    }
+
+    .btn:hover { transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn:focus-visible { outline: 3px solid rgba(23, 105, 232, .24); outline-offset: 2px; }
+    .btn-primary { color: #fff; background: linear-gradient(135deg, #2680f5 0%, #1157ca 100%); box-shadow: 0 10px 24px rgba(20, 93, 206, .24); }
+    .btn-primary:hover { box-shadow: 0 13px 28px rgba(20, 93, 206, .32); }
+    .btn-primary:disabled { cursor: wait; opacity: .76; transform: none; }
+    .btn-secondary { color: #425873; border: 1px solid #d8e3ef; background: #fff; }
+    .btn-secondary:hover { color: var(--primary); border-color: #aacaf4; background: #f8fbff; }
+    .btn-small { min-height: 32px; padding: 6px 10px; border-radius: 8px; color: var(--primary); background: var(--primary-soft); font-size: 12px; white-space: nowrap; }
+    .btn-small:hover { background: #dcecff; }
+
+    .result-panel { min-height: 650px; padding: 24px; }
+
+    .empty-state {
+      min-height: 600px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 32px;
+    }
+
+    .empty-icon {
+      width: 76px;
+      height: 76px;
+      display: grid;
+      place-items: center;
+      margin: 0 auto 18px;
+      border: 1px solid #d8e9ff;
+      border-radius: 24px;
+      background: linear-gradient(145deg, #f7fbff, #e7f2ff);
+      color: var(--primary);
+      font-size: 32px;
+      box-shadow: 0 12px 28px rgba(43, 108, 194, .12);
+    }
+
+    .empty-state h2 { margin: 0 0 10px; font-size: 20px; }
+    .empty-state p { max-width: 400px; margin: 0; color: var(--muted); line-height: 1.7; font-size: 14px; }
+
+    .result-content[hidden], .empty-state[hidden] { display: none; }
+
+    .result-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+      padding: 4px 2px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .result-toolbar h2 { margin: 0 0 5px; font-size: 21px; }
+    .result-toolbar p { margin: 0; color: var(--muted); font-size: 13px; }
+    .toolbar-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+
+    .meta-tags, .structure-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+    .meta-tags { margin-bottom: 14px; }
+    .structure-tags { margin: 0 0 18px; padding: 12px 14px; border-radius: 12px; background: #f5f9fe; }
+    .tag { padding: 5px 9px; border: 1px solid #dce9f8; border-radius: 999px; color: #49627f; background: #fff; font-size: 12px; }
+    .tag strong { color: var(--primary-dark); font-weight: 700; }
+    .structure-tag { display: inline-flex; align-items: center; gap: 5px; color: #536c89; font-size: 12px; font-weight: 600; }
+    .structure-tag::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #5d9cef; }
+
+    .result-section { margin-top: 14px; border: 1px solid #e0e9f3; border-radius: 16px; background: #fff; overflow: hidden; }
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; border-bottom: 1px solid #edf2f7; background: linear-gradient(90deg, #f9fcff, #fff); }
+    .section-title { display: flex; align-items: center; gap: 9px; min-width: 0; }
+    .section-index { width: 26px; height: 26px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 8px; color: #fff; background: linear-gradient(145deg, #4b93f4, #1764d3); font-size: 12px; font-weight: 800; }
+    .section-head h3 { margin: 0; font-size: 16px; }
+    .section-body { padding: 18px; }
+
+    .title-list { display: grid; gap: 10px; }
+    .title-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 12px; border: 1px solid #e2ebf5; border-radius: 12px; background: #fbfdff; cursor: pointer; transition: .18s; }
+    .title-item:hover { border-color: #9fc5f7; background: #f7fbff; transform: translateY(-1px); }
+    .title-item.selected { border-color: #5c9bef; background: #edf6ff; box-shadow: 0 0 0 3px rgba(52, 126, 229, .08); }
+    .title-number { width: 25px; height: 25px; display: grid; place-items: center; border-radius: 50%; color: #54708f; background: #eaf1f8; font-size: 12px; font-weight: 800; }
+    .title-item.selected .title-number { color: #fff; background: var(--primary); }
+    .title-text { color: #233954; font-size: 14px; font-weight: 650; line-height: 1.6; }
+    .selected-mark { display: none; color: var(--primary); font-size: 12px; font-weight: 700; }
+    .title-item.selected .selected-mark { display: inline; }
+
+    .prose { color: #324760; font-size: 15px; line-height: 1.95; white-space: pre-wrap; }
+    .prose strong { color: #173759; }
+    .article-title { margin: 0 0 20px; color: #142f50; font-size: clamp(20px, 3vw, 26px); line-height: 1.45; text-align: center; }
+    .article-content { color: #2d4058; font-size: 15px; line-height: 2; }
+    .article-content h4 { margin: 28px 0 10px; color: #17375c; font-size: 18px; line-height: 1.55; }
+    .article-content h4:first-child { margin-top: 0; }
+    .article-content p { margin: 0 0 14px; }
+    .article-content .quote { margin: 18px 0; padding: 13px 15px; border-left: 4px solid #4d91ec; border-radius: 0 10px 10px 0; background: #f3f8fe; color: #315577; font-weight: 650; }
+    .prompt-box { padding: 14px 15px; border: 1px dashed #b9d2ef; border-radius: 12px; background: #f8fbff; color: #334e6e; font-size: 14px; line-height: 1.9; white-space: pre-wrap; }
+    .prompt-list { display: grid; gap: 13px; }
+    .prompt-item h4 { margin: 0 0 8px; color: #25466e; font-size: 14px; }
+    .image-section-hidden { display: none; }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 30px;
+      z-index: 50;
+      padding: 11px 17px;
+      border-radius: 11px;
+      color: #fff;
+      background: rgba(18, 34, 58, .92);
+      box-shadow: 0 10px 34px rgba(10, 30, 58, .24);
+      font-size: 14px;
+      opacity: 0;
+      transform: translate(-50%, 12px);
+      pointer-events: none;
+      transition: .22s;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    .footer { padding: 16px 20px 34px; color: #708198; text-align: center; font-size: 12px; line-height: 1.8; }
+
+    @media (max-width: 980px) {
+      .page-shell { width: min(100% - 28px, 820px); }
+      .hero { padding-top: 38px; }
+      .app-layout { grid-template-columns: 1fr; }
+      .input-panel { position: static; }
+      .empty-state { min-height: 400px; }
+    }
+
+    @media (max-width: 620px) {
+      .page-shell { width: min(100% - 20px, 560px); }
+      .hero { padding: 30px 6px 22px; }
+      h1 { font-size: 36px; }
+      .hero-subtitle { font-size: 14px; }
+      .input-panel, .result-panel { padding: 16px; border-radius: 17px; }
+      .button-stack { grid-template-columns: 1fr; }
+      .result-toolbar { align-items: flex-start; flex-direction: column; }
+      .toolbar-actions { width: 100%; justify-content: stretch; }
+      .toolbar-actions .btn { flex: 1; }
+      .title-item { grid-template-columns: auto minmax(0, 1fr); }
+      .title-item .btn-small { grid-column: 2; justify-self: start; }
+      .section-head { padding: 14px; }
+      .section-body { padding: 14px; }
+      .article-content { font-size: 14px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero page-shell">
+    <div class="eyebrow">适合公众号 / 小红书 / 社群文章 / 知识付费内容</div>
+    <h1>公众号爆文生成器</h1>
+    <p class="hero-subtitle">输入一个方向，一键生成标题、简介、正文、封面图和文章配图提示词</p>
+  </header>
+
+  <main class="app-layout page-shell">
+    <aside class="input-panel card" aria-label="内容生成条件">
+      <div class="panel-heading">
+        <h2>创作参数</h2>
+        <span class="step-badge">01 / 输入方向</span>
+      </div>
+
+      <div class="form-group">
+        <label for="topic">选题方向 <span class="required">*</span></label>
+        <input id="topic" type="text" maxlength="60" placeholder="例如：AI副业变现、职场提效、亲子教育">
+      </div>
+
+      <div class="form-group">
+        <label for="audience">目标读者</label>
+        <input id="audience" type="text" maxlength="60" placeholder="例如：职场白领、副业新手、宝妈、自媒体新人">
+      </div>
+
+      <div class="form-group">
+        <label for="articleType">文章类型</label>
+        <div class="select-wrap">
+          <select id="articleType">
+            <option>干货教程型</option><option>认知提升型</option><option>经验复盘型</option><option>痛点共鸣型</option><option>商业分析型</option><option>爆款清单型</option><option>故事案例型</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="style">内容风格</label>
+        <div class="select-wrap">
+          <select id="style">
+            <option>犀利直接</option><option>温暖治愈</option><option>专业干货</option><option>爆款口语</option><option>高级商业</option><option>小红书风</option><option selected>知识付费风</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="wordCount">文章字数</label>
+        <div class="select-wrap">
+          <select id="wordCount">
+            <option>800字</option><option selected>1200字</option><option>1500字</option><option>2000字</option><option>3000字</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="switch-row">
+        <div class="switch-copy"><strong>生成图片提示词</strong><span>含封面图与 3 张文章配图</span></div>
+        <label class="switch" aria-label="是否生成图片提示词">
+          <input id="includeImages" type="checkbox" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="button-stack">
+        <button class="btn btn-primary" id="generateBtn" type="button"><span>✦</span><span>一键生成爆文</span></button>
+        <button class="btn btn-secondary" id="clearBtn" type="button">清空内容</button>
+      </div>
+    </aside>
+
+    <section class="result-panel card" aria-label="爆文生成结果">
+      <div class="empty-state" id="emptyState">
+        <div>
+          <div class="empty-icon">✎</div>
+          <h2>等待你的创作灵感</h2>
+          <p>请在左侧输入选题方向，点击生成后查看爆文内容。</p>
+        </div>
+      </div>
+
+      <div class="result-content" id="resultContent" hidden>
+        <div class="result-toolbar">
+          <div><h2>爆文创作结果</h2><p>点击任意标题，可切换正文与封面主标题</p></div>
+          <div class="toolbar-actions">
+            <button class="btn btn-secondary" id="regenerateBtn" type="button">↻ 一键重新生成</button>
+            <button class="btn btn-secondary" id="downloadBtn" type="button">↓ 下载为 TXT</button>
+            <button class="btn btn-primary" id="copyAllBtn" type="button">复制全部内容</button>
+          </div>
+        </div>
+
+        <div class="meta-tags" id="metaTags"></div>
+        <div class="structure-tags" aria-label="文章结构">
+          <span class="structure-tag">开头引入</span><span class="structure-tag">痛点分析</span><span class="structure-tag">方法拆解</span><span class="structure-tag">案例示范</span><span class="structure-tag">行动清单</span><span class="structure-tag">结尾升华</span>
+        </div>
+
+        <article class="result-section">
+          <div class="section-head"><div class="section-title"><span class="section-index">01</span><h3>爆款标题推荐</h3></div></div>
+          <div class="section-body"><div class="title-list" id="titleList"></div></div>
+        </article>
+
+        <article class="result-section">
+          <div class="section-head"><div class="section-title"><span class="section-index">02</span><h3>爆款简介</h3></div><button class="btn btn-small copy-btn" data-copy="intro" type="button">复制简介</button></div>
+          <div class="section-body"><div class="prose" id="introOutput"></div></div>
+        </article>
+
+        <article class="result-section">
+          <div class="section-head"><div class="section-title"><span class="section-index">03</span><h3>爆款文章正文</h3></div><button class="btn btn-small copy-btn" data-copy="article" type="button">复制正文</button></div>
+          <div class="section-body">
+            <h3 class="article-title" id="articleTitle"></h3>
+            <div class="article-content" id="articleOutput"></div>
+          </div>
+        </article>
+
+        <div id="imageSections">
+          <article class="result-section">
+            <div class="section-head"><div class="section-title"><span class="section-index">04</span><h3>公众号封面图提示词</h3></div><button class="btn btn-small copy-btn" data-copy="cover" type="button">复制封面提示词</button></div>
+            <div class="section-body"><div class="prompt-box" id="coverOutput"></div></div>
+          </article>
+
+          <article class="result-section">
+            <div class="section-head"><div class="section-title"><span class="section-index">05</span><h3>文章内配图提示词</h3></div><button class="btn btn-small copy-btn" data-copy="images" type="button">复制三张配图提示词</button></div>
+            <div class="section-body"><div class="prompt-list" id="imagePromptsOutput"></div></div>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer page-shell">本工具适合用于公众号选题策划、文章初稿生成、内容运营提效和 AI 生图提示词生成。生成内容仅供参考，请结合真实经验进行修改和优化。</footer>
+  <div class="toast" id="toast" role="status" aria-live="polite">已复制</div>
+
+  <script>
+    'use strict';
+
+    const $ = (selector) => document.querySelector(selector);
+    const elements = {
+      topic: $('#topic'), audience: $('#audience'), articleType: $('#articleType'), style: $('#style'),
+      wordCount: $('#wordCount'), includeImages: $('#includeImages'), generateBtn: $('#generateBtn'),
+      clearBtn: $('#clearBtn'), emptyState: $('#emptyState'), resultContent: $('#resultContent'),
+      metaTags: $('#metaTags'), titleList: $('#titleList'), introOutput: $('#introOutput'),
+      articleTitle: $('#articleTitle'), articleOutput: $('#articleOutput'), coverOutput: $('#coverOutput'),
+      imagePromptsOutput: $('#imagePromptsOutput'), imageSections: $('#imageSections'), toast: $('#toast'),
+      regenerateBtn: $('#regenerateBtn'), downloadBtn: $('#downloadBtn'), copyAllBtn: $('#copyAllBtn')
+    };
+
+    const templates = {
+      titles: [
+        '为什么你做了很久{topic}，却一直没有结果？',
+        '别再乱做{topic}了，真正厉害的人都在用这套方法',
+        '我用这套方法，把{topic}从想法变成了真实结果',
+        '普通人想靠{topic}破局，先想清楚这3件事',
+        '从0到1做{topic}，我建议你先抄这套路径',
+        '适合{audience}的{topic}实操指南：少走弯路，直接上手',
+        '真正懂{topic}的人，早就不靠盲目努力了',
+        '{audience}做{topic}，最值得死磕的7个关键动作',
+        '别再自我感动了：你的{topic}没结果，问题出在这里',
+        '关于{topic}，90%的人都把顺序做反了',
+        '拆解100个案例后，我找到了{topic}快速起步的答案',
+        '{topic}真正的分水岭：不是能力，而是这套底层系统'
+      ],
+      hooks: [
+        '你有没有发现：同样在做{topic}，有人很快拿到结果，有人忙了几个月，却始终停在原地？',
+        '这两年，越来越多{audience}开始关注{topic}。但热闹背后，一个扎心的事实是：真正跑通的人并不多。',
+        '如果你正在做{topic}，却总觉得方向很多、动作很满、结果很少，这篇文章建议你认真看完。',
+        '关于{topic}，最危险的从来不是起步晚，而是用错误的方法，重复制造“我很努力”的假象。'
+      ],
+      pains: [
+        '信息收藏了很多，真正落地时却不知道第一步做什么；今天学一个技巧，明天又换一套方法。',
+        '把时间花在看起来很专业的细节上，却没有验证用户是否真的需要、结果是否真的发生。',
+        '一开始热血沸腾，遇到反馈不佳就迅速怀疑自己，执行因此变得断断续续。',
+        '只盯着别人已经做出的结果，却忽略了对方背后长期积累的系统、样本和复盘。'
+      ],
+      methods: [
+        '先定义一个可衡量的小结果，再倒推本周唯一需要完成的关键动作。',
+        '把复杂问题拆成“输入—行动—反馈—优化”四个环节，每次只修正最卡的一环。',
+        '用真实反馈代替自我判断：先做最小版本，交给目标读者验证，再决定是否加码。',
+        '把有效动作沉淀成清单和模板，让下一次执行不再从零开始。',
+        '每周固定一次复盘：保留有效动作，停止低价值消耗，给下一轮留下明确结论。'
+      ],
+      endings: [
+        '{topic}不是一场比谁更焦虑的竞赛，而是一场比谁更愿意持续校准的长期练习。',
+        '真正拉开差距的，往往不是知道得更多，而是把一个正确动作重复到产生复利。',
+        '所有看起来突然发生的结果，背后都有一段不动声色的积累。你不需要准备完美，只需要开始第一轮。',
+        '别再等“条件成熟”。很多时候，行动本身才是让条件逐渐成熟的唯一方式。'
+      ]
+    };
+
+    const styleProfiles = {
+      '犀利直接': { lead: '先说结论：', tone: '别绕弯子，结果不会奖励无效忙碌。', close: '停止观望，今天就用结果检验行动。' },
+      '温暖治愈': { lead: '我想先告诉你：', tone: '暂时没有结果，不等于你不够好，或许只是路径需要调整。', close: '慢一点没关系，只要每一步都在靠近真正想要的生活。' },
+      '专业干货': { lead: '从实践角度看，', tone: '判断一个方法是否有效，要看目标、流程、反馈三个变量。', close: '用数据复盘，用流程提效，用持续迭代换确定性。' },
+      '爆款口语': { lead: '说真的，', tone: '这件事没你想得那么玄，但也绝不是随便做做就能成。', close: '先别收藏吃灰，挑一个动作马上干起来。' },
+      '高级商业': { lead: '从商业视角来看，', tone: '真正稀缺的不是信息，而是把信息转化为稳定价值的能力。', close: '建立可重复的价值交付，才是长期增长的起点。' },
+      '小红书风': { lead: '亲测有效：', tone: '不用卷复杂方法，把关键步骤做对，新手也能快速上手。', close: '建议先收藏，再按清单一项项打卡实践。' },
+      '知识付费风': { lead: '你需要看懂一个底层逻辑：', tone: '知识本身不产生价值，被理解、被执行、被验证的知识才产生价值。', close: '把认知变成动作，把动作变成结果，这才是学习的闭环。' }
+    };
+
+    const typeInsights = {
+      '干货教程型': '本文不堆概念，重点给出一套能直接照着执行的步骤。',
+      '认知提升型': '真正需要升级的不是某个技巧，而是你看待问题的底层框架。',
+      '经验复盘型': '复盘的价值，不是讲一段经历，而是提炼下一次还能复用的判断。',
+      '痛点共鸣型': '很多困境并非你一个人遇到，问题往往来自共同的结构性误区。',
+      '商业分析型': '任何增长都要回到需求、价值、交付和复购这四个商业变量。',
+      '爆款清单型': '复杂问题最适合被拆成清单，因为清晰本身就是行动力。',
+      '故事案例型': '一个真实案例的意义，在于让抽象方法变成可看见的选择与结果。'
+    };
+
+    let state = null;
+    let toastTimer = null;
+
+    function sample(array) { return array[Math.floor(Math.random() * array.length)]; }
+    function shuffle(array) { return [...array].sort(() => Math.random() - 0.5); }
+    function fill(text, data) { return text.replace(/\{(\w+)\}/g, (_, key) => data[key] ?? ''); }
+    function escapeHTML(value) { return String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]); }
+
+    function getFormData() {
+      return {
+        topic: elements.topic.value.trim(),
+        audience: elements.audience.value.trim() || '普通人',
+        type: elements.articleType.value || '干货教程型',
+        style: elements.style.value || '知识付费风',
+        wordCount: elements.wordCount.value || '1200字',
+        includeImages: elements.includeImages.checked
+      };
+    }
+
+    function makeTitles(data) {
+      const pools = [
+        templates.titles.filter(item => item.includes('为什么') || item.includes('问题')),
+        templates.titles.filter(item => item.includes('结果') || item.includes('从0到1') || item.includes('案例')),
+        templates.titles.filter(item => item.includes('真正') || item.includes('90%') || item.includes('分水岭')),
+        templates.titles.filter(item => item.includes('3件事') || item.includes('7个') || item.includes('指南')),
+        templates.titles.filter(item => item.includes('别再') || item.includes('破局'))
+      ];
+      const used = new Set();
+      return pools.map(pool => {
+        const available = pool.filter(item => !used.has(item));
+        const picked = sample(available.length ? available : templates.titles.filter(item => !used.has(item)));
+        used.add(picked);
+        return fill(picked, data);
+      });
+    }
+
+    function makeIntro(data) {
+      const roots = [
+        `很多${data.audience}都想通过${data.topic}获得突破，但真正开始后才发现，最大的障碍不是不努力，而是不知道该从哪里下手。`,
+        `${data.topic}看起来机会很多，真正落到${data.audience}身上，却常常变成“懂了不少，结果不多”。`,
+        `对${data.audience}来说，${data.topic}最让人焦虑的不是缺信息，而是信息太多、路径太乱、执行很难持续。`
+      ];
+      const values = [
+        `问题的根源，往往是没有明确目标，也没有一套从行动到反馈的闭环。本文会用${data.type}的方式，从真实痛点出发，拆解一套可复制、可执行、可落地的方法。`,
+        `真正拉开差距的，是能否把零散技巧变成稳定系统。接下来，我们会拆开关键误区、方法步骤与实操案例，帮你把方向变成结果。`
+      ];
+      return `${sample(roots)}${sample(values)}如果你也想少走弯路，并找到今天就能开始的动作，请继续读下去。`;
+    }
+
+    function section(title, paragraphs) { return { title, paragraphs }; }
+
+    function makeArticle(data) {
+      const profile = styleProfiles[data.style] || styleProfiles['知识付费风'];
+      const selectedPains = shuffle(templates.pains).slice(0, 3);
+      const selectedMethods = shuffle(templates.methods).slice(0, 4);
+      const hook = fill(sample(templates.hooks), data);
+      const insight = typeInsights[data.type] || typeInsights['干货教程型'];
+      const ending = fill(sample(templates.endings), data);
+      const length = parseInt(data.wordCount, 10) || 1200;
+
+      const sections = [
+        section('一、为什么这个问题越来越重要？', [
+          `${profile.lead}${hook}`,
+          `过去，${data.topic}可能只是少数人的选择；现在，它正在变成${data.audience}提升效率、建立影响力或打开新增长空间的重要能力。变化越快，试错成本越高，越需要一套清晰的方法。`,
+          `${profile.tone}${insight}`
+        ]),
+        section('二、很多人卡住，不是因为不努力', [
+          `我见过很多认真研究${data.topic}的人。他们课程买了、资料存了、计划也写得很完整，最后却依然没有稳定结果。原因通常不是懒，而是努力被分散在了错误的位置。`,
+          `最常见的三个卡点是：第一，${selectedPains[0]}第二，${selectedPains[1]}第三，${selectedPains[2]}`,
+          `这些问题的共同点，是把“做了多少”当成“推进了多少”。但真正有效的进步，必须能留下看得见的成果、可判断的反馈，以及下一轮可以复用的经验。`
+        ]),
+        section('三、真正有效的方法，是先搭建一套系统', [
+          `做${data.topic}，最忌讳靠情绪驱动：状态好就猛冲，状态差就停摆。稳定结果来自系统，而不是偶尔的爆发。`,
+          `这套系统可以浓缩为四个词：目标、动作、反馈、复盘。目标负责确定方向，动作负责产生样本，反馈负责纠偏，复盘负责把偶然的成功变成可重复的能力。`,
+          `记住这句话：先跑通一个小闭环，再追求规模；先证明方法有效，再投入更多时间。顺序一旦做对，焦虑会明显下降。`
+        ]),
+        section('四、具体应该怎么做？', [
+          `第一步，${selectedMethods[0]}不要写“我要做好${data.topic}”这种模糊目标，而要写清楚对象、动作、截止时间和判断标准。`,
+          `第二步，${selectedMethods[1]}当结果不理想时，不要推翻全部计划，只定位一个最影响结果的环节。`,
+          `第三步，${selectedMethods[2]}真实世界的一个回应，通常比脑内推演十遍更有价值。`,
+          `第四步，${selectedMethods[3]}模板不是限制创造力，而是把精力从重复劳动中解放出来，用在更重要的判断上。`
+        ]),
+        section('五、一个可复制的实操案例', [
+          `假设一位${data.audience}准备开始${data.topic}。过去，他会先花一周搜集资料，再花一周设计宏大计划，真正执行时反而没有力气。`,
+          `调整后，他只设定一个7天目标：完成一个最小成果，并邀请3位真实目标用户给出反馈。第1天明确问题，第2天搭出框架，第3至5天完成内容，第6天收集反馈，第7天复盘。`,
+          `第一轮结果并不完美，但他拿到了三个极有价值的结论：用户最在意什么、哪个环节最容易卡住、什么表达最容易被理解。第二轮，他只针对这三个问题优化，效率和完成度都明显提升。`,
+          `这个案例的关键不在于“7天”，而在于用短周期制造反馈。你不再凭感觉猜答案，而是在行动中逐步接近答案。`
+        ]),
+        section('六、普通人现在就能开始的3个动作', [
+          `动作一：写下一个小目标。它必须能在7天内完成，并且有明确交付物。`,
+          `动作二：做出第一个最小版本。不要等完美，不要无限补课，先让成果离开你的脑海，进入真实场景。`,
+          `动作三：建立一张复盘卡。只回答三个问题：什么有效？什么无效？下一次只改什么？坚持四周，你会拥有自己的方法论。`,
+          `如果你今天只能做一件事，就完成动作一。清晰的小目标，会自然带出下一步。`
+        ]),
+        section('七、写在最后', [
+          `${ending}`,
+          `对${data.audience}来说，最好的起点从来不是“我已经全部准备好”，而是“我愿意用一个小行动换一次真实反馈”。当你持续完成目标、行动、反馈、复盘这四步，${data.topic}就不再是一句口号，而会成为可积累、可复用的能力。`,
+          `${profile.close}如果这篇文章对你有启发，欢迎收藏并转发给同样需要的朋友，也别忘了在评论区写下你准备开始的第一个动作。`
+        ])
+      ];
+
+      if (length >= 1500) {
+        sections[2].paragraphs.push(`进一步说，系统的作用是降低对意志力的依赖。把固定时间、关键步骤和交付标准写下来，你就不必每天重新说服自己。对${data.audience}而言，这种稳定性比偶尔灵光一现更有价值。`);
+        sections[3].paragraphs.push(`还有一个容易被忽略的原则：一次只优化一个变量。如果目标、内容、渠道和节奏同时变化，你就无法判断结果究竟因何改变。控制变量，才能积累真正可信的经验。`);
+      }
+      if (length >= 2000) {
+        sections[1].paragraphs.push(`另一个隐蔽误区，是把别人的路径原样复制。别人的资源、经验和受众与你不同，能复制的是思考框架，而不是表面动作。任何方法都要经过一次本地化：它服务谁、解决什么问题、与你现有优势如何连接。`);
+        sections[4].paragraphs.push(`如果把这套做法继续放大，还可以形成“案例库”：每轮记录目标、关键动作、用户反馈和迭代结论。积累到10个样本后，你会发现重复出现的规律，这些规律就是最适合你的增长杠杆。`);
+        sections[5].paragraphs.push(`执行中如果连续两轮没有进展，不要急着否定方向。先检查目标是否过大、反馈对象是否准确、动作是否直接指向结果。把问题缩小，你就能重新获得控制感。`);
+      }
+      if (length >= 3000) {
+        sections[0].paragraphs.push(`从长期看，${data.topic}带来的不只是某一次结果，更是一种解决陌生问题的能力：快速理解、低成本试验、从反馈中学习。这套能力越早建立，越容易在变化中保持主动。`);
+        sections[2].paragraphs.push(`你还可以为系统设置两类指标：结果指标与过程指标。结果指标告诉你是否到达终点，过程指标告诉你每天是否走在正确的路上。前者用于判断，后者用于管理。`);
+        sections[3].paragraphs.push(`建议每轮结束后，把有效经验写成一句“如果……那么……”的规则。例如：如果用户无法快速理解价值，那么先重写开头，而不是继续增加内容。规则越清晰，决策越高效。`);
+        sections[4].paragraphs.push(`三个月后，这位实践者不只完成了更多成果，还建立了稳定节奏。他不再被短期数据轻易影响，因为他知道每一次交付都在增加样本，每一次复盘都在提升下一轮胜率。`);
+        sections[6].paragraphs.unshift(`真正的成长经常很安静：没有戏剧性的转折，只有一次比一次更准确的选择。回头看时，你才发现那些小闭环已经连成了一条向上的曲线。`);
+      }
+      return sections;
+    }
+
+    function makeCover(data, title) {
+      const visualSets = [
+        '知识卡片、增长曲线、笔记本电脑、公众号文章界面与灵感光效',
+        '清晰的数据图表、蓝色信息卡片、专注思考的人物剪影与上升箭头',
+        '悬浮信息面板、目标路径、内容创作工作台与细腻科技光晕'
+      ];
+      return `生成一张公众号文章封面图，比例16:9，主题为「${data.topic}」，面向「${data.audience}」。整体采用高级知识付费封面风格，浅蓝色科技感背景，白色与深蓝色为主色，干净商业设计，信息清晰、传播感强。画面中心突出大标题：「${title}」，中文文字必须完整、清晰、准确、可读，不得出现错别字。背景融入${sample(visualSets)}，视觉焦点明确，留白充足，层级清楚，高清质感，适合作为公众号头图。`;
+    }
+
+    function makeImagePrompts(data) {
+      return [
+        { label: '配图1：痛点分析图', text: `生成一张公众号文章内配图，比例16:9，主题为「为什么${data.audience}在${data.topic}上迟迟没有结果」。画面采用浅蓝色知识卡片风格，中间是一位面对复杂信息、略显困惑的人物，周围环绕三个清晰的中文痛点标签：「方向不清」「方法太散」「执行断断续续」。用断裂路径和分散卡片强化困境感，画面干净高级，中文文字清晰准确，适合插入公众号痛点分析段落。` },
+        { label: '配图2：方法拆解图', text: `生成一张公众号文章内配图，比例16:9，主题为「${data.topic}的系统化方法拆解」。采用从左到右的五步流程图结构，依次展示：「明确目标」「拆解问题」「设计路径」「执行反馈」「复盘优化」，每一步配简洁图标与连接箭头。浅蓝、白色、深蓝色商业信息图风格，层级明确，中文文字完整清晰，视觉统一，适合公众号正文方法章节。` },
+        { label: '配图3：行动清单图', text: `生成一张公众号文章内配图，比例16:9，主题为「${data.audience}马上可以开始的${data.topic}行动清单」。画面采用高级清单卡片设计，包含三个带勾选框的中文行动步骤：「设定一个7天小目标」「完成一次最小实操」「沉淀一份复盘模板」。加入日历、行动箭头和完成标记，整体清爽专业、有行动感，浅蓝色统一视觉，中文文字准确可读，适合作为公众号结尾行动清单图。` }
+      ];
+    }
+
+    function generateContent() {
+      const data = getFormData();
+      if (!data.topic) {
+        showToast('请先输入公众号选题方向。');
+        elements.topic.focus();
+        return;
+      }
+      setLoading(true);
+      window.setTimeout(() => {
+        const titles = makeTitles(data);
+        state = {
+          data, titles, selectedTitle: 0,
+          intro: makeIntro(data),
+          article: makeArticle(data),
+          cover: '',
+          imagePrompts: data.includeImages ? makeImagePrompts(data) : []
+        };
+        state.cover = data.includeImages ? makeCover(data, titles[0]) : '';
+        renderAll();
+        setLoading(false);
+        if (window.innerWidth < 981) elements.resultContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 500);
+    }
+
+    function setLoading(isLoading) {
+      elements.generateBtn.disabled = isLoading;
+      elements.generateBtn.innerHTML = isLoading ? '<span>◌</span><span>生成中...</span>' : '<span>✦</span><span>一键生成爆文</span>';
+    }
+
+    function renderAll() {
+      elements.emptyState.hidden = true;
+      elements.resultContent.hidden = false;
+      renderMeta(); renderTitles(); renderIntro(); renderArticle(); renderImages();
+    }
+
+    function renderMeta() {
+      const d = state.data;
+      const items = [['选题方向', d.topic], ['目标读者', d.audience], ['文章类型', d.type], ['内容风格', d.style], ['文章字数', d.wordCount]];
+      elements.metaTags.innerHTML = items.map(([key, value]) => `<span class="tag"><strong>${escapeHTML(key)}</strong> · ${escapeHTML(value)}</span>`).join('');
+    }
+
+    function renderTitles() {
+      elements.titleList.innerHTML = state.titles.map((title, index) => `
+        <div class="title-item ${index === state.selectedTitle ? 'selected' : ''}" role="button" tabindex="0" data-title-index="${index}" aria-pressed="${index === state.selectedTitle}">
+          <span class="title-number">${index + 1}</span>
+          <span class="title-text">${escapeHTML(title)} <span class="selected-mark">当前主标题</span></span>
+          <button class="btn btn-small title-copy" type="button" data-index="${index}">复制标题</button>
+        </div>`).join('');
+    }
+
+    function renderIntro() { elements.introOutput.textContent = state.intro; }
+
+    function renderArticle() {
+      elements.articleTitle.textContent = state.titles[state.selectedTitle];
+      elements.articleOutput.innerHTML = state.article.map((item, sectionIndex) => {
+        const paragraphs = item.paragraphs.map((p, index) => `<p class="${sectionIndex === 0 && index === 0 ? 'quote' : ''}">${escapeHTML(p)}</p>`).join('');
+        return `<h4>${escapeHTML(item.title)}</h4>${paragraphs}`;
+      }).join('');
+    }
+
+    function renderImages() {
+      const show = state.data.includeImages;
+      elements.imageSections.classList.toggle('image-section-hidden', !show);
+      if (!show) return;
+      elements.coverOutput.textContent = state.cover;
+      elements.imagePromptsOutput.innerHTML = state.imagePrompts.map(item => `<div class="prompt-item"><h4>${escapeHTML(item.label)}</h4><div class="prompt-box">${escapeHTML(item.text)}</div></div>`).join('');
+    }
+
+    function selectTitle(index) {
+      if (!state || index === state.selectedTitle) return;
+      state.selectedTitle = index;
+      if (state.data.includeImages) state.cover = makeCover(state.data, state.titles[index]);
+      renderTitles(); renderArticle(); renderImages();
+      showToast('已切换为正文主标题');
+    }
+
+    function articleToText() {
+      if (!state) return '';
+      return `${state.titles[state.selectedTitle]}\n\n${state.article.map(item => `${item.title}\n\n${item.paragraphs.join('\n\n')}`).join('\n\n')}`;
+    }
+
+    function imagesToText() { return state?.imagePrompts.map(item => `${item.label}\n${item.text}`).join('\n\n') || ''; }
+
+    function allToText() {
+      if (!state) return '';
+      const blocks = [
+        '【公众号爆文生成结果】',
+        `选题方向：${state.data.topic}\n目标读者：${state.data.audience}\n文章类型：${state.data.type}\n内容风格：${state.data.style}\n文章字数：${state.data.wordCount}`,
+        `【爆款标题推荐】\n${state.titles.map((title, index) => `${index + 1}. ${title}`).join('\n')}`,
+        `【爆款简介】\n${state.intro}`,
+        `【爆款文章正文】\n${articleToText()}`
+      ];
+      if (state.data.includeImages) {
+        blocks.push(`【公众号封面图提示词】\n${state.cover}`);
+        blocks.push(`【文章内配图提示词】\n${imagesToText()}`);
+      }
+      return blocks.join('\n\n');
+    }
+
+    async function copyText(text, button) {
+      if (!text) return;
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          const textarea = document.createElement('textarea');
+          textarea.value = text;
+          textarea.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+          document.body.appendChild(textarea);
+          textarea.focus(); textarea.select();
+          const ok = document.execCommand('copy');
+          textarea.remove();
+          if (!ok) throw new Error('copy failed');
+        }
+        if (button) {
+          const original = button.textContent;
+          button.textContent = '已复制';
+          window.setTimeout(() => { button.textContent = original; }, 1200);
+        }
+        showToast('已复制到剪贴板');
+      } catch (error) {
+        showToast('复制失败，请手动选择复制');
+      }
+    }
+
+    function showToast(message) {
+      elements.toast.textContent = message;
+      elements.toast.classList.add('show');
+      window.clearTimeout(toastTimer);
+      toastTimer = window.setTimeout(() => elements.toast.classList.remove('show'), 1800);
+    }
+
+    function clearAll() {
+      elements.topic.value = '';
+      elements.audience.value = '';
+      elements.articleType.value = '干货教程型';
+      elements.style.value = '知识付费风';
+      elements.wordCount.value = '1200字';
+      elements.includeImages.checked = true;
+      state = null;
+      elements.resultContent.hidden = true;
+      elements.emptyState.hidden = false;
+      elements.topic.focus();
+      showToast('内容已清空');
+    }
+
+    function downloadTxt() {
+      if (!state) return;
+      const blob = new Blob(['\uFEFF' + allToText()], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const safeName = state.data.topic.replace(/[\\/:*?"<>|]/g, '_').slice(0, 30) || '公众号爆文';
+      link.href = url;
+      link.download = `${safeName}_公众号爆文.txt`;
+      document.body.appendChild(link); link.click(); link.remove();
+      URL.revokeObjectURL(url);
+      showToast('TXT 文件已下载');
+    }
+
+    elements.generateBtn.addEventListener('click', generateContent);
+    elements.regenerateBtn.addEventListener('click', generateContent);
+    elements.clearBtn.addEventListener('click', clearAll);
+    elements.downloadBtn.addEventListener('click', downloadTxt);
+    elements.copyAllBtn.addEventListener('click', event => copyText(allToText(), event.currentTarget));
+
+    elements.titleList.addEventListener('click', event => {
+      const copyButton = event.target.closest('.title-copy');
+      if (copyButton) {
+        event.stopPropagation();
+        copyText(state.titles[Number(copyButton.dataset.index)], copyButton);
+        return;
+      }
+      const item = event.target.closest('.title-item');
+      if (item) selectTitle(Number(item.dataset.titleIndex));
+    });
+
+    elements.titleList.addEventListener('keydown', event => {
+      if ((event.key === 'Enter' || event.key === ' ') && event.target.classList.contains('title-item')) {
+        event.preventDefault(); selectTitle(Number(event.target.dataset.titleIndex));
+      }
+    });
+
+    document.addEventListener('click', event => {
+      const button = event.target.closest('.copy-btn');
+      if (!button || !state) return;
+      const map = { intro: state.intro, article: articleToText(), cover: state.cover, images: imagesToText() };
+      copyText(map[button.dataset.copy], button);
+    });
+
+    elements.topic.addEventListener('keydown', event => {
+      if (event.key === 'Enter') generateContent();
+    });
+  </script>
+</body>
+</html>
